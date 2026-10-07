@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rio a Dois • Aniversário da Stefany ☀️🌴 (09 a 13/Out)</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts (Outfit & Playfair Display) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,800;1,400;1,700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Tone.js for pleasant audio effects & Samba de Verão -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Firebase SDKs for Multi-device Cloud Sync -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    window.initCloudSync = async function(onDataLoadedCallback) {
+      try {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'rio-stefany-trip';
+        if (typeof __firebase_config === 'undefined') {
+          console.info("Using robust offline local persistence.");
+          return;
+        }
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        const sharedDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'couple_trip_state');
+
+        // Real-time synchronization across devices (Stefany's phone and Thiago's phone)
+        onSnapshot(sharedDocRef, (snap) => {
+          if (snap.exists()) {
+            const remoteData = snap.data();
+            if (onDataLoadedCallback) onDataLoadedCallback(remoteData);
+          }
+        }, (err) => {
+          console.warn("Cloud listener fallback to local storage:", err);
+        });
+
+        window.saveTripStateToCloud = async function(stateData) {
+          try {
+            await setDoc(sharedDocRef, {
+              ...stateData,
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+          } catch(e) {
+            console.warn("Could not save to cloud, local state maintained:", e);
+          }
+        };
+
+      } catch (e) {
+        console.warn("Firebase init bypassed, using local state:", e);
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+    .font-serif-title {
+      font-family: 'Playfair Display', serif;
+    }
+    #map {
+      height: 380px;
+      width: 100%;
+      border-radius: 1.25rem;
+      z-index: 10;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .pulse-heart {
+      animation: heartPulse 1.8s infinite;
+    }
+    @keyframes heartPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+    .polaroid-card {
+      background: #ffffff;
+      padding: 12px 12px 18px 12px;
+      box-shadow: 0 10px 25px -5px rgba(217, 119, 6, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(254, 240, 138, 0.7);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .polaroid-card:hover {
+      transform: translateY(-4px) rotate(-0.5deg);
+      box-shadow: 0 20px 25px -5px rgba(217, 119, 6, 0.25);
+    }
+    .custom-marker-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      position: absolute;
+      transform: rotate(-45deg);
+      left: 50%;
+      top: 50%;
+      margin: -16px 0 0 -16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .custom-marker-pin i {
+      transform: rotate(45deg);
+      color: white;
+      font-size: 14px;
+    }
+
+    /* Fullscreen Romantic Welcome Curtain */
+    #welcome-curtain {
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #welcome-curtain.hidden-curtain {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.04);
+      visibility: hidden;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-amber-100/70 via-yellow-50 to-pink-50 text-slate-800 min-h-screen pb-16">
+
+  <!-- ROMANTIC QR-CODE LANDING CURTAIN FOR STEFANY -->
+  <div id="welcome-curtain" class="fixed inset-0 z-50 bg-gradient-to-br from-yellow-400 via-amber-500 to-rose-600 flex flex-col items-center justify-center p-6 text-center text-white overflow-y-auto">
+    <!-- Sunny Decorative Accents -->
+    <div class="absolute top-6 left-6 text-yellow-200/40 text-7xl pointer-events-none">
+      <i class="fa-solid fa-sun"></i>
+    </div>
+    <div class="absolute bottom-8 right-8 text-yellow-100/30 text-8xl pointer-events-none">
+      <i class="fa-solid fa-umbrella-beach"></i>
+    </div>
+
+    <div class="max-w-md w-full bg-slate-900/40 backdrop-blur-xl border border-yellow-300/40 p-8 sm:p-10 rounded-3xl shadow-2xl space-y-6 relative z-10 animate-in fade-in zoom-in duration-300">
+      <div class="w-24 h-24 mx-auto bg-gradient-to-tr from-yellow-300 to-amber-400 rounded-full flex items-center justify-center text-4xl shadow-xl shadow-amber-500/50 border-4 border-white pulse-heart">
+        🌻
+      </div>
+
+      <div class="space-y-2">
+        <span class="inline-block text-[11px] font-black uppercase tracking-widest text-slate-950 bg-yellow-300 px-3.5 py-1 rounded-full shadow-md">
+          🌻 Para o amor da minha vida: Stefany
+        </span>
+        <h1 class="text-3xl sm:text-4xl font-extrabold font-serif-title text-white tracking-tight leading-tight">
+          Nossa 1ª Viagem Juntos • Rio de Janeiro ☀️💛
+        </h1>
+        <p class="text-xs sm:text-sm text-yellow-100/90 leading-relaxed font-light">
+          Um roteiro interativo pensado em cada detalhe para comemorar o seu aniversário sob a luz dourada do Rio!
+        </p>
+      </div>
+
+      <!-- MAIN QR CODE BUTTON -->
+      <button onclick="startOurJourney()" class="w-full py-4 px-6 bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-400 hover:from-yellow-200 hover:to-amber-300 active:scale-95 text-slate-950 font-black text-base sm:text-lg rounded-2xl shadow-xl shadow-yellow-600/50 transition-all flex items-center justify-center gap-3 border-2 border-white cursor-pointer">
+        <span>Aqui começa nossa tão esperada viagem</span>
+        <i class="fa-solid fa-arrow-right text-slate-900"></i>
+      </button>
+    </div>
+  </div>
+
+  <header class="sticky top-0 z-40 backdrop-blur-md bg-white/90 border-b border-amber-200 shadow-sm transition-all">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-400 to-pink-500 flex items-center justify-center text-white shadow-md shadow-amber-400/40 border-2 border-white">
+          <i class="fa-solid fa-sun pulse-heart text-yellow-100"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-xl font-bold font-serif-title text-slate-900 leading-tight flex items-center gap-1.5 flex-wrap">
+            Rio a Dois 
+            <span class="text-amber-900 font-sans text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-yellow-200 to-amber-300 border border-yellow-400/60 px-2.5 py-0.5 rounded-full shadow-xs">
+              🌻 B-Day Stefany • 09 a 13/Out
+            </span>
+          </h1>
+          <p class="text-xs text-slate-500 hidden sm:block">Primeira viagem inesquecível de casal • 5 Dias no Rio de Janeiro</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions (Audio & B-Day Surprise) -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Summer Samba Ambient Sound Player -->
+        <button id="btn-ambient-audio" onclick="toggleAmbientSound()" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full border border-yellow-300 bg-amber-50 hover:bg-yellow-100 text-amber-900 shadow-sm transition-all" title="Tocar Samba de Verão instrumental">
+          <i id="ambient-icon" class="fa-solid fa-sun text-yellow-500"></i>
+          <span id="ambient-text" class="hidden md:inline">Samba de Verão ☀️</span>
+        </button>
+
+        <!-- QR Reopen / Welcome button -->
+        <button onclick="showCurtainAgain()" class="p-2 text-slate-500 hover:text-amber-800 rounded-full hover:bg-yellow-100 transition-all" title="Reabrir Boas-Vindas da Stefany">
+          <i class="fa-solid fa-heart text-amber-500"></i>
+        </button>
+
+        <!-- Birthday Surprise Button with sunny accents -->
+        <button onclick="triggerBirthdayModal()" class="flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 via-amber-500 to-rose-500 hover:from-yellow-500 hover:to-rose-600 text-white shadow-md shadow-yellow-500/30 transition-all border border-yellow-200">
+          <i class="fa-solid fa-cake-candles text-yellow-100"></i>
+          <span class="hidden xs:inline">B-Day Pretinha</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-8">
+    
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-600 via-yellow-600 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-yellow-300/40">
+      <div class="absolute -right-10 -bottom-10 opacity-15 text-9xl pointer-events-none text-yellow-300">
+        <i class="fa-solid fa-sun"></i>
+      </div>
+      <div class="absolute -left-10 -top-10 opacity-10 text-9xl pointer-events-none text-amber-200">
+        <i class="fa-solid fa-umbrella-beach"></i>
+      </div>
+
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div class="space-y-3 max-w-xl">
+          <div class="inline-flex items-center gap-2 bg-yellow-400/20 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-semibold text-yellow-200 border border-yellow-400/40">
+            <i class="fa-solid fa-sun text-yellow-300"></i> Cor Favorita da Pretinha: Amarelo Sol 💛
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold font-serif-title tracking-tight leading-tight text-white drop-shadow-sm">
+            Comemorando o aniversário da Stefany sob o sol do Rio ☀️
+          </h2>
+          <p class="text-amber-100 text-sm sm:text-base leading-relaxed">
+            De 09 a 13 de outubro: Leblon, Viaduto de Madureira, Pôr do Sol no Arpoador, Museu do Amanhã, Feira da Glória, Mansão do Zé Pelintra, Confeitaria Colombo, Parque Lage, Copacabana, Pedra do Sal, Santa Teresa e Ensaio da Grande Rio!
+          </p>
+        </div>
+
+        <!-- Couple Stats Widget -->
+        <div class="bg-black/25 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-yellow-400/30 min-w-[260px] space-y-3 shadow-inner">
+          <div class="flex justify-between items-end">
+            <span class="text-xs uppercase tracking-wider text-yellow-200 font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-compass text-yellow-400"></i> Progresso da Viagem
+            </span>
+            <span id="progress-percentage" class="text-2xl font-black font-serif-title text-yellow-300">0%</span>
+          </div>
+          
+          <div class="w-full bg-black/30 h-3 rounded-full overflow-hidden p-0.5 border border-yellow-500/20">
+            <div id="progress-bar" class="bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 h-full rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1 text-center text-xs">
+            <div class="bg-white/10 rounded-xl p-2 border border-yellow-300/20">
+              <span id="completed-count" class="block font-bold text-base text-yellow-300">0/0</span>
+              <span class="text-amber-100">Concluídas</span>
+            </div>
+            <div class="bg-white/10 rounded-xl p-2 border border-yellow-300/20">
+              <span id="total-photos" class="block font-bold text-base text-yellow-300">0</span>
+              <span class="text-amber-100">Fotos Registradas</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex items-center gap-2 border-b border-amber-200/80 pb-3 overflow-x-auto no-scrollbar">
+      <button onclick="switchTab('itinerary')" id="tab-btn-itinerary" class="tab-btn active px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-900 shadow-md shadow-amber-400/25 border border-yellow-300">
+        <i class="fa-solid fa-route"></i> Roteiro Completo & Checklist
+      </button>
+      <button onclick="switchTab('scrapbook')" id="tab-btn-scrapbook" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 bg-white text-slate-700 hover:bg-yellow-50 border border-amber-100">
+        <i class="fa-solid fa-camera-retro text-amber-500"></i> Álbum Polaroids (<span id="photo-badge">0</span>)
+      </button>
+      <button onclick="switchTab('safety-tips')" id="tab-btn-safety-tips" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 bg-white text-slate-700 hover:bg-yellow-50 border border-amber-100">
+        <i class="fa-solid fa-compass text-amber-500"></i> Dicas de Logística & Segurança
+      </button>
+    </nav>
+
+    <section id="section-itinerary" class="space-y-6">
+      
+      <!-- Day Selector Filter (5 days: Sex 09/10 a Ter 13/10) -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-sm border border-amber-200/70">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-bold uppercase text-amber-800 tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-calendar-day text-yellow-500"></i> Filtrar Dia:
+          </span>
+          <div class="flex flex-wrap gap-1.5" id="day-filters">
+            <button onclick="filterByDay('all')" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-bold bg-amber-400 text-slate-900 border border-amber-500/30 transition-all shadow-xs" data-day="all">Todos os Dias</button>
+            <button onclick="filterByDay(1)" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50" data-day="1">Sex 09/10 • Leblon & Madureira</button>
+            <button onclick="filterByDay(2)" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50" data-day="2">Sáb 10/10 • Lavradio & Arpoador</button>
+            <button onclick="filterByDay(3)" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50" data-day="3">Dom 11/10 • Amanhã, Glória & Lapa</button>
+            <button onclick="filterByDay(4)" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50" data-day="4">Seg 12/10 • Colombo, Lage & Pedra do Sal</button>
+            <button onclick="filterByDay(5)" class="day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50" data-day="5">Ter 13/10 • Santa Teresa & Grande Rio</button>
+          </div>
+        </div>
+
+        <button onclick="resetAllProgress()" class="text-xs text-amber-700 hover:text-amber-900 font-semibold flex items-center gap-1 transition-all bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200">
+          <i class="fa-solid fa-arrow-rotate-left text-yellow-600"></i> Redefinir Checks
+        </button>
+      </div>
+
+      <!-- Split Layout: Cards on the left, Map on the right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Interactive Itinerary List -->
+        <div class="lg:col-span-7 space-y-4" id="itinerary-cards-container">
+          <!-- Cards dynamically injected via JavaScript -->
+        </div>
+
+        <!-- Sticky Map Column -->
+        <div class="lg:col-span-5">
+          <div class="sticky top-24 space-y-3 bg-white p-3.5 rounded-3xl shadow-sm border border-amber-200">
+            <div class="flex items-center justify-between px-1">
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-map-pin text-amber-500"></i> Mapa dos Pontos do Roteiro
+              </h3>
+              <span class="text-xs bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full font-semibold">
+                Toque no ponto para detalhes
+              </span>
+            </div>
+            
+            <div id="map"></div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500 pt-1 px-1 flex-wrap gap-2">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400 border border-amber-600 inline-block"></span> A Conhecer</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-500 border border-yellow-700 inline-block"></span> Concluído ✨</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span> Hospedagem 🏨</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="section-scrapbook" class="hidden space-y-6">
+      <div class="bg-white p-6 rounded-3xl shadow-sm border border-amber-200 space-y-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-900 bg-yellow-300/60 border border-yellow-400 px-2.5 py-1 rounded-full">
+              🌻 Lembranças Douradas de Casal
+            </span>
+            <h3 class="text-2xl font-bold font-serif-title text-slate-900 mt-1">Álbum Polaroid da Stefany & Você</h3>
+            <p class="text-sm text-slate-500">Registre os momentos com a luz do Rio e o amarelo vibrante que a Stefany ama!</p>
+          </div>
+          <button onclick="openAddPhotoModal()" class="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-900 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-md shadow-yellow-500/25 transition-all border border-yellow-400">
+            <i class="fa-solid fa-plus"></i> Adicionar Nova Memória
+          </button>
+        </div>
+
+        <!-- Polaroid Photo Grid -->
+        <div id="polaroid-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-4">
+          <!-- Dynamic Polaroids injected here -->
+        </div>
+
+        <div id="empty-scrapbook-msg" class="text-center py-12 space-y-3">
+          <div class="w-16 h-16 mx-auto bg-amber-100 border border-yellow-300 rounded-full flex items-center justify-center text-amber-600 text-2xl shadow-inner">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <h4 class="font-bold text-slate-700">Nenhuma foto adicionada ainda!</h4>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">Tire fotos no pôr do sol do Arpoador, no Parque Lage, na Confeitaria Colombo ou na Pedra do Sal e anexe aqui.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-safety-tips" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Tip Card: Transição de Hospedagens -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-amber-200 space-y-3 relative overflow-hidden">
+          <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg font-bold">
+            <i class="fa-solid fa-suitcase-rolling"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 text-lg font-serif-title">1. Troca de Hospedagem (Sáb 10/10)</h4>
+          <p class="text-xs text-amber-800 font-semibold">Almirante Barroso ➔ Rua do Senado (Centro/Lapa)</p>
+          <div class="text-sm text-slate-600 space-y-2 leading-relaxed bg-amber-50/60 p-4 rounded-2xl border border-amber-200">
+            <p><strong>Dica de Ouro:</strong> Façam o check-out até 10h na Almirante Barroso e sigam para a hospedagem da Rua do Senado para deixar as malas no guarda-volumes.</p>
+            <p>Assim vocês aproveitam a Feira do Lavradio, Ipanema e o Pôr do Sol no Arpoador livres de peso, fazendo o check-in definitivo ao voltar às 21h!</p>
+          </div>
+        </div>
+
+        <!-- Tip Card: Selarón & Arcos da Lapa -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-rose-100 space-y-3 relative overflow-hidden">
+          <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg font-bold">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 text-lg font-serif-title">2. Escadaria Selarón Cedo & Noite na Lapa</h4>
+          <p class="text-xs text-rose-700 font-semibold">Fotos sem muvuca & axé com segurança</p>
+          <div class="text-sm text-slate-600 space-y-2 leading-relaxed bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
+            <p><strong>Sábado às 07:00:</strong> Chegar cedo na Selarón garante as melhores fotos de casal com a escadaria totalmente vazia e com a luz suave da manhã.</p>
+            <p><strong>Domingo à noite:</strong> O Santuário e a Mansão do Zé Pelintra ficam na Lapa. Na hora de voltar de madrugada para a Rua do Senado, prefiram Uber/táxi (menos de 5 min) em vez de caminhar pelas ruas desertas.</p>
+          </div>
+        </div>
+
+        <!-- Tip Card: Feriado de 12 de Outubro -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 space-y-3 relative overflow-hidden">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">
+            <i class="fa-solid fa-calendar-check"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 text-lg font-serif-title">3. Feriado 12/Out: Parque Lage & Colombo</h4>
+          <p class="text-xs text-emerald-800 font-semibold">Organização em dia comemorativo nacional</p>
+          <div class="text-sm text-slate-600 space-y-2 leading-relaxed bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
+            <p><strong>Confeitaria Colombo (12h00):</strong> Almoçar no Centro antes de descer para a Zona Sul poupa vaivém no trânsito.</p>
+            <p><strong>Parque Lage (14h00):</strong> Costuma ter fila para foto no pátio interno com vista para o Cristo. Cheguem com paciência e aproveitem a brisa do Jardim Botânico antes de seguir para Copacabana!</p>
+          </div>
+        </div>
+
+        <!-- Tip Card: Ensaio da Grande Rio -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-indigo-100 space-y-3 relative overflow-hidden">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold">
+            <i class="fa-solid fa-drum"></i>
+          </div>
+          <h4 class="font-bold text-slate-900 text-lg font-serif-title">4. Ensaio da Grande Rio (Terça 13/Out)</h4>
+          <p class="text-xs text-indigo-800 font-semibold">Fechamento de ouro com muito samba</p>
+          <div class="text-sm text-slate-600 space-y-2 leading-relaxed bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+            <p><strong>Deslocamento para Caxias:</strong> Saiam por volta das 18h30 do Centro de aplicativo para contornar o trânsito da Linha Vermelha / Av. Brasil com calma.</p>
+            <p>Curtam o som da bateria e a energia contagiante da quadra para fechar a comemoração de aniversário da Stefany com chave de ouro!</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Birthday Surprise Modal for Stefany -->
+  <div id="birthday-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-gradient-to-b from-yellow-50 via-white to-amber-50 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-2 border-yellow-300 text-center space-y-5 relative animate-in fade-in zoom-in duration-200">
+      <button onclick="closeBirthdayModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-yellow-200 hover:bg-yellow-100 transition-all">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="w-20 h-20 mx-auto bg-gradient-to-tr from-yellow-400 via-amber-400 to-rose-400 rounded-full flex items-center justify-center text-white text-3xl shadow-lg shadow-yellow-400/40 border-2 border-white pulse-heart">
+        🌻
+      </div>
+
+      <div class="space-y-2">
+        <span class="text-xs uppercase font-bold tracking-widest text-amber-900 bg-yellow-200 border border-yellow-400 px-3 py-1 rounded-full shadow-xs">
+          Amarelo Sol & Amor • B-Day Pretinha
+        </span>
+        <h3 class="text-2xl sm:text-3xl font-bold font-serif-title text-slate-900">Feliz Aniversário, Stefany! 💛🎉</h3>
+        <p class="text-xs text-amber-700 font-medium">Comemorando sua vida com todo o brilho, axé e encanto do Rio de Janeiro!</p>
+      </div>
+
+      <!-- Editable Love Note with yellow stationery look -->
+      <div class="bg-yellow-50/90 p-4 rounded-2xl border border-yellow-300/80 text-left shadow-inner space-y-2">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-heart text-amber-500"></i> Carta de Amor & Declaração:
+          </label>
+          <button onclick="copyLoveLetter()" class="text-[11px] font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 bg-yellow-200/70 hover:bg-yellow-300 px-2 py-0.5 rounded-lg transition-all" title="Copiar mensagem">
+            <i class="fa-regular fa-copy text-amber-700"></i> Copiar
+          </button>
+        </div>
+        <textarea id="love-letter-text" rows="4" class="w-full text-xs sm:text-sm text-slate-800 bg-transparent border-0 focus:ring-0 resize-none p-0 leading-relaxed font-serif italic" placeholder="Escreva aqui uma mensagem especial para a Stefany ouvir ou ler no grande dia..."></textarea>
+        <div class="flex justify-between items-center pt-2 border-t border-yellow-200">
+          <span class="text-[11px] text-amber-700">Salvo automaticamente</span>
+          <button onclick="saveLoveNote()" class="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1">
+            <i class="fa-solid fa-floppy-disk text-yellow-600"></i> Salvar Mensagem
+          </button>
+        </div>
+      </div>
+
+      <!-- Celebration triggers -->
+      <div class="pt-2 flex flex-col sm:flex-row gap-2">
+        <button onclick="celebrateStefany()" class="w-full py-3 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:opacity-95 text-slate-900 font-extrabold rounded-2xl text-sm shadow-lg shadow-yellow-500/30 transition-all flex items-center justify-center gap-2 border border-yellow-300">
+          <i class="fa-solid fa-sparkles text-amber-900"></i> Soltar Confetes Amarelos & Parabéns!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Photo Modal -->
+  <div id="photo-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-200 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-lg text-slate-900 font-serif-title">Registrar Memória Fotográfica</h3>
+        <button onclick="closePhotoModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Local / Ponto do Roteiro:</label>
+          <select id="photo-activity-select" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Selecione uma Foto do Casal:</label>
+          <input type="file" id="photo-file-input" accept="image/*" class="w-full text-xs p-2 rounded-xl border border-slate-200 bg-slate-50 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-100 file:text-yellow-800 hover:file:bg-yellow-200">
+        </div>
+
+        <div id="photo-preview-container" class="hidden text-center">
+          <img id="photo-preview" src="" alt="Pré-visualização" class="max-h-44 mx-auto rounded-xl shadow-sm object-cover">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Legenda Romântica / Sentimento:</label>
+          <input type="text" id="photo-caption-input" placeholder="Ex: O sorriso da Stefany com a vista pro mar!" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500">
+        </div>
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button onclick="savePhotoEntry()" class="w-full py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 rounded-xl text-xs font-bold shadow-md shadow-yellow-500/20 transition-all border border-yellow-400">
+          Salvar no Álbum
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /* Complete New Itinerary Dataset based on the 09 to 13/Oct schedule */
+    const ITINERARY_DATA = [
+      // SEXTA-FEIRA - 09/10
+      {
+        id: "sex_shopping_leblon",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "Manhã",
+        title: "Shopping Leblon (Trabalho & Chegada)",
+        location: "Av. Afrânio de Melo Franco, 290, Leblon",
+        coords: [-22.9828, -43.2185],
+        category: "passeio",
+        icon: "fa-laptop",
+        description: "Chegada ao Rio. O Thiago trabalha do shopping e vocês aproveitam o espaço confortável com ar condicionado e cafés até a hora do almoço.",
+        tips: "Ótimo Wi-Fi, opções de café e tranquilidade para começar a viagem sem correria.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_almoco_leblon",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "12:30",
+        title: "Almoço no Shopping Leblon",
+        location: "Av. Afrânio de Melo Franco, 290, Leblon",
+        coords: [-22.9828, -43.2185],
+        category: "gastronomia",
+        icon: "fa-utensils",
+        description: "Almoço prático e gostoso na praça de alimentação ou em um dos restaurantes do shopping.",
+        tips: "Opções deliciosas para recarregar as energias antes de ir à praia.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_praia_leblon",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "Tarde",
+        title: "Praia do Leblon",
+        location: "Av. Delfim Moreira, Leblon",
+        coords: [-22.9875, -43.2241],
+        category: "praia",
+        icon: "fa-umbrella-beach",
+        description: "Assim que o Thiago ficar off do trabalho, caminhar juntos de mãos dadas pela orla do Leblon e sentir a brisa do mar.",
+        tips: "Clássico carioca: tomem uma água de coco geladinha e biscoito Globo à beira-mar com o Morro Dois Irmãos de fundo!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_checkin_1",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "17:30",
+        title: "Check-in na 1ª Hospedagem",
+        location: "Av. Almirante Barroso, Centro",
+        coords: [-22.9073, -43.1764],
+        category: "hospedagem",
+        icon: "fa-hotel",
+        description: "Check-in na primeira hospedagem no Centro (Av. Almirante Barroso). Banho relaxante e descanso (pode ser às 18h).",
+        tips: "Conferir o número da reserva com antecedência e deixar as roupas da noite separadas.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_saida_zn",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "18:30",
+        title: "Saída para a Zona Norte",
+        location: "Deslocamento Centro ➔ Marechal Hermes",
+        coords: [-22.8617, -43.3725],
+        category: "transporte",
+        icon: "fa-taxi",
+        description: "Deslocamento de aplicativo ou metrô do Centro em direção a Marechal Hermes.",
+        tips: "Sair às 18h30 garante fugir do pico mais pesado da volta do trabalho.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_marechal_hermes",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "19:15",
+        title: "Parada em Marechal Hermes",
+        location: "Marechal Hermes, Zona Norte",
+        coords: [-22.8617, -43.3725],
+        category: "gastronomia",
+        icon: "fa-burger",
+        description: "Conhecer a famosa gastronomia boêmia e os clássicos da Zona Norte carioca.",
+        tips: "Famoso pela feira gastronômica e petiscos generosos cariocas.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sex_viaduto_madureira",
+        day: 1,
+        dayName: "Sexta 09/10",
+        time: "21:00",
+        title: "Samba / Baile no Viaduto de Madureira",
+        location: "Viaduto Negrão de Lima, Madureira",
+        coords: [-22.8719, -43.3394],
+        category: "samba",
+        icon: "fa-music",
+        description: "A energia vibrante do Viaduto Negrão de Lima! Curtir o samba ou Baile Charme histórico embaixo do viaduto.",
+        tips: "Um dos maiores templos culturais do Rio! Vão de tênis confortável para dançar muito.",
+        completed: false,
+        userNotes: ""
+      },
+
+      // SÁBADO - 10/10
+      {
+        id: "sab_selaron",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "07:00",
+        title: "Escadaria Selarón Cedo",
+        location: "Rua Manuel Carneiro, Santa Teresa / Lapa",
+        coords: [-22.9154, -43.1793],
+        category: "passeio",
+        icon: "fa-camera",
+        description: "Sessão de fotos românticas com a escadaria completamente vazia e a luz dourada do amanhecer.",
+        tips: "Chegar às 7h faz toda a diferença: nenhum turista nas fotos e ângulo perfeito nos azulejos amarelos!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_checkout_1",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "08:15",
+        title: "Volta à Hospedagem, Café e Check-out",
+        location: "Av. Almirante Barroso, Centro",
+        coords: [-22.9073, -43.1764],
+        category: "hospedagem",
+        icon: "fa-suitcase",
+        description: "Retorno da Selarón, café da manhã reforçado e arrumação final para o check-out (limite às 10h).",
+        tips: "Deixar tudo na mala pronto para agilizar a transição até a Rua do Senado.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_guarda_malas_2",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "09:30",
+        title: "Ir à 2ª Hospedagem (Deixar Malas)",
+        location: "Rua do Senado, Centro",
+        coords: [-22.9108, -43.1852],
+        category: "hospedagem",
+        icon: "fa-boxes-packing",
+        description: "Deslocamento até a segunda hospedagem na Rua do Senado para deixar as malas no guarda-volumes.",
+        tips: "Peçam para liberar o quarto mais cedo se possível, mas garantam as malas guardadas para passear leves.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_feira_lavradio",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "10:00",
+        title: "Feira do Lavradio",
+        location: "Rua do Lavradio, 28, Centro",
+        coords: [-22.9103, -43.1834],
+        category: "passeio",
+        icon: "fa-store",
+        description: "Passeio a pé entre os antiquários, artesanato carioca e atmosfera colonial da Rua do Lavradio.",
+        tips: "Sábado comum: edição mais tranquila e charmosa para garimpar lembrancinhas de casal.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_almoco_lavradio",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "12:00",
+        title: "Almoço na Rua do Lavradio",
+        location: "Rua do Lavradio, Centro",
+        coords: [-22.9103, -43.1834],
+        category: "gastronomia",
+        icon: "fa-utensils",
+        description: "Almoço tradicional em um dos casarões históricos e restaurantes da Lavradio que abrem sem pausa.",
+        tips: "Opções como Santo Scenarium ou Boteco da Garrafa com boa cerveja e petiscos cariocas.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_praia_ipanema",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "14:15",
+        title: "Praia de Ipanema",
+        location: "Av. Vieira Souto, Ipanema (altura Vinícius de Moraes)",
+        coords: [-22.9866, -43.2039],
+        category: "praia",
+        icon: "fa-umbrella-beach",
+        description: "Deslocamento até a Zona Sul (30 a 40 min). Curtir a areia dourada e a energia cosmopolita de Ipanema até as 15h.",
+        tips: "Posto 9/Vinícius de Moraes é o coração da bossa nova e tem o mar mais gostoso para relaxar.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_lagoa",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "15:15",
+        title: "Lagoa Rodrigo de Freitas",
+        location: "Av. Epitácio Pessoa, Lagoa",
+        coords: [-22.9754, -43.2045],
+        category: "passeio",
+        icon: "fa-water",
+        description: "Caminhada romântica e pausa contemplativa na beira da Lagoa com vista privilegiada para o Cristo.",
+        tips: "Momento sereno para tomar uma água de coco e tirar fotos abraçados.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_arpoador",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "16:45",
+        title: "Pôr do Sol no Arpoador",
+        location: "Av. Francisco Bhering, Arpoador",
+        coords: [-22.9889, -43.1924],
+        category: "romantico",
+        icon: "fa-sun",
+        description: "Subir na Pedra do Arpoador para vivenciar o pôr do sol mais aplaudido do Brasil ao lado da Stefany! (sol se põe ~17h45).",
+        tips: "Chegar às 16h45 é fundamental para pegar um lugar confortável na pedra antes de lotar!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_jantar_ipanema",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "19:30",
+        title: "Jantar Romântico em Ipanema",
+        location: "Ipanema, Zona Sul",
+        coords: [-22.9840, -43.2000],
+        category: "gastronomia",
+        icon: "fa-wine-glass",
+        description: "Jantar a dois pelas ruas arborizadas de Ipanema (ex: Garcia d'Ávila ou Rua Aníbal de Mendonça).",
+        tips: "Brinde especial de aniversário para a Stefany!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_volta_hospedagem",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "21:00",
+        title: "Retorno à 2ª Hospedagem (Check-in & Banho)",
+        location: "Rua do Senado, Centro",
+        coords: [-22.9108, -43.1852],
+        category: "hospedagem",
+        icon: "fa-key",
+        description: "Volta ao Centro, check-in definitivo no quarto, banho e preparação para a balada.",
+        tips: "Descanso merecido antes de curtir a noite carioca.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "sab_balada",
+        day: 2,
+        dayName: "Sábado 10/10",
+        time: "23:00",
+        title: "Balada Carioca",
+        location: "Zona Sul / Lapa (Local a definir)",
+        coords: [-22.9840, -43.2000],
+        category: "festa",
+        icon: "fa-champagne-glasses",
+        description: "Comemoração com muita música e diversão para celebrar o aniversário em grande estilo!",
+        tips: "Usem Uber ida e volta para curtir a noite com total comodidade e segurança.",
+        completed: false,
+        userNotes: ""
+      },
+
+      // DOMINGO - 11/10
+      {
+        id: "dom_corrida_orla",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "08:00",
+        title: "Corrida ou Caminhada Leve na Orla Conde",
+        location: "Orla Conde, Praça Mauá, Centro",
+        coords: [-22.8967, -43.1802],
+        category: "esporte",
+        icon: "fa-person-running",
+        description: "Manhã de corrida ou caminhada relaxante pós-balada pela esplanada ampla e plana da Orla Conde, com vista para a Baía de Guanabara.",
+        tips: "A brisa matinal do mar na Baía é revigorante para começar o domingo sem peso.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_cafe_praca_maua",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "09:15",
+        title: "Café da Manhã na Praça Mauá",
+        location: "Praça Mauá, Centro (arredores do museu)",
+        coords: [-22.8967, -43.1802],
+        category: "gastronomia",
+        icon: "fa-mug-saucer",
+        description: "Café reforçado e suco gelado perto do Museu do Amanhã contemplando o espelho d'água.",
+        tips: "Ótimas opções nos quiosques e cafeterias do Boulevard Olímpico.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_museu_amanha",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "10:15",
+        title: "Museu do Amanhã",
+        location: "Praça Mauá, 1, Centro",
+        coords: [-22.8942, -43.1800],
+        category: "cultura",
+        icon: "fa-landmark",
+        description: "Visita à impressionante arquitetura futurista de Santiago Calatrava e exposições imersivas sobre sustentabilidade e o cosmos.",
+        tips: "Comprem o ingresso com antecedência pela internet para entrar sem pegar a fila da bilheteria!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_feira_gloria",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "12:30",
+        title: "Feira da Glória & Almoço com Samba",
+        location: "Rua Augusto Severo, Glória",
+        coords: [-22.9189, -43.1764],
+        category: "gastronomia",
+        icon: "fa-drum",
+        description: "A melhor vibe de domingo do Rio! Barracas de comidas artesanais do mundo todo e roda de samba ao vivo a partir das 14h na Praça do Samba.",
+        tips: "Experimentem os pastéis, acarajé ou comida baiana enquanto ouvem o samba de raiz começar!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_arcos_lapa",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "16:30",
+        title: "Arcos da Lapa",
+        location: "Praça Cardeal Câmara / Av. Mem de Sá, Lapa",
+        coords: [-22.9131, -43.1798],
+        category: "passeio",
+        icon: "fa-archway",
+        description: "Visitar o maior monumento da arquitetura colonial do Rio de Janeiro. Fotos clássicas embaixo dos arcos e clima boêmio.",
+        tips: "O final de tarde começa a animar a boemia da Lapa com artistas e feirinhas.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_cafe_lapa",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "17:30",
+        title: "Café ou Pausa na Lapa",
+        location: "Lapa, Centro",
+        coords: [-22.9135, -43.1810],
+        category: "gastronomia",
+        icon: "fa-coffee",
+        description: "Uma pausa aconchegante para um café ou cerveja gelada descansando antes da noite religiosa e festiva.",
+        tips: "Bom momento para revisar as fotos tiradas durante o dia no museu e na feira.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_santuario_ze_pelintra",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "19:00",
+        title: "Santuário do Zé Pelintra e Maria Navalha",
+        location: "Embaixo dos Arcos da Lapa, Lapa",
+        coords: [-22.9132, -43.1799],
+        category: "cultura",
+        icon: "fa-star-of-david",
+        description: "Ponto sagrado de devoção, respeito e axé carioca sob os Arcos da Lapa, pedindo caminhos abertos e proteção para o casal.",
+        tips: "Local de profunda fé popular carioca. Sintam a energia e a história viva da malandragem do bem.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "dom_mansao_ze_pelintra",
+        day: 3,
+        dayName: "Domingo 11/10",
+        time: "20:00",
+        title: "Mansão do Zé Pelintra",
+        location: "Lapa (colado aos Arcos / Rua Joaquim Silva)",
+        coords: [-22.9139, -43.1796],
+        category: "samba",
+        icon: "fa-martini-glass-citrus",
+        description: "Bar de axé, ancestralidade e muito samba na Lapa. Música ao vivo, energia contagiante e drinks temáticos.",
+        tips: "Volta para a Rua do Senado: peguem Uber direto na porta para segurança total (são menos de 5 min).",
+        completed: false,
+        userNotes: ""
+      },
+
+      // SEGUNDA-FEIRA - 12/10 (FERIADO NACIONAL)
+      {
+        id: "seg_cais_valongo",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "08:30",
+        title: "Cais do Valongo (Pequena África)",
+        location: "Av. Barão de Tefé, Gamboa",
+        coords: [-22.8967, -43.1878],
+        category: "historia",
+        icon: "fa-monument",
+        description: "Patrimônio Mundial da UNESCO. Visita cedo por causa do calor para conhecer o sítio histórico da chegada e resistência afro-brasileira no Rio.",
+        tips: "Espaço de muita memória, força e respeito que marca o início da Pequena África.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_morro_conceicao",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "09:30",
+        title: "Morro da Conceição",
+        location: "Ladeira João Homem, Centro / Saúde",
+        coords: [-22.8988, -43.1855],
+        category: "passeio",
+        icon: "fa-mountain-city",
+        description: "Passeio a pé pelas vielas de paralelepípedo, ateliers de artistas e casario colonial preservado no coração do porto.",
+        tips: "Um refúgio silencioso e bucólico bem no meio do Centro do Rio.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_mural_etnias",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "10:45",
+        title: "Mural Etnias (Kobra)",
+        location: "Boulevard Olímpico, Av. Rodrigues Alves",
+        coords: [-22.8948, -43.1873],
+        category: "cultura",
+        icon: "fa-palette",
+        description: "O maior mural de grafite do mundo, pintado por Eduardo Kobra. Cores vibrantes em homenagem aos povos originários de todos os continentes.",
+        tips: "As cores amarelas e azuis do mural rendem as fotos mais instagramáveis de casal!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_confeitaria_colombo",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "12:00",
+        title: "Almoço na Confeitaria Colombo",
+        location: "Rua Gonçalves Dias, 32, Centro",
+        coords: [-22.9056, -43.1788],
+        category: "gastronomia",
+        icon: "fa-cake-candles",
+        description: "Almoço suntuoso nos espelhos belgas da tradicional Confeitaria Colombo. Planejado antes do Parque Lage para evitar ir e voltar entre zonas.",
+        tips: "Peçam o clássico pastel de nata ou doces de ovos para comemorar o aniversário da Stefany!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_parque_lage",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "14:00",
+        title: "Parque Lage",
+        location: "Rua Jardim Botânico, 414, Jardim Botânico",
+        coords: [-22.9599, -43.2127],
+        category: "romantico",
+        icon: "fa-tree",
+        description: "O emblemático palacete histórico aos pés do Corcovado com piscina central e vista perfeita para o Cristo Redentor.",
+        tips: "Por ser feriado de 12/Out, cheguem com calma para a foto clássica no pátio com o Cristo ao fundo.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_copacabana",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "16:15",
+        title: "Praia de Copacabana",
+        location: "Av. Atlântica, Copacabana",
+        coords: [-22.9698, -43.1800],
+        category: "praia",
+        icon: "fa-umbrella-beach",
+        description: "Caminhada pelo icônico calçadão ondulado de Copacabana no final de tarde e água de coco na Princesinha do Mar.",
+        tips: "O calçadão preto e branco é um cartão-postal obrigatório para selfies de casal.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "seg_pedra_sal",
+        day: 4,
+        dayName: "Segunda 12/10",
+        time: "20:15",
+        title: "Samba na Pedra do Sal",
+        location: "Rua Argemiro Bulcão, Largo João da Baiana, Saúde",
+        coords: [-22.8988, -43.1868],
+        category: "samba",
+        icon: "fa-drum",
+        description: "A clássica segunda-feira de samba da Pedra do Sal! O berço do samba carioca com roda acústica ao redor da pedra histórica e caipirinhas.",
+        tips: "A segunda-feira é o dia mais autêntico e tradicional da Pedra. Cheguem por volta das 20h para se acomodarem bem.",
+        completed: false,
+        userNotes: ""
+      },
+
+      // TERÇA-FEIRA - 13/10 (FLAMENGO, SANTA TERESA & GRANDE RIO)
+      {
+        id: "ter_corrida_flamengo",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "08:00",
+        title: "Corrida na Praia / Aterro do Flamengo",
+        location: "Av. Infante Dom Henrique, Aterro do Flamengo",
+        coords: [-22.9298, -43.1738],
+        category: "esporte",
+        icon: "fa-person-running",
+        description: "Corrida matinal com a pista plana do Aterro e a vista inigualável para a Enseada de Botafogo e o Pão de Açúcar.",
+        tips: "Para não desgastar no trânsito a pé do Centro, um Uber de 6 minutos deixa vocês direto na pista à beira-mar.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_checkout_final",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "11:30",
+        title: "Check-out (Malas no Guarda-Volumes)",
+        location: "Rua do Senado, Centro",
+        coords: [-22.9108, -43.1852],
+        category: "hospedagem",
+        icon: "fa-suitcase",
+        description: "Check-out na hospedagem da Rua do Senado, deixando as malas guardadas para aproveitar a tarde em Santa Teresa livres.",
+        tips: "Combinar com a recepção o horário exato da retirada no fim da tarde.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_almoco_centro",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "12:30",
+        title: "Almoço no Centro (Rua do Lavradio)",
+        location: "Rua do Lavradio, Centro",
+        coords: [-22.9103, -43.1834],
+        category: "gastronomia",
+        icon: "fa-utensils",
+        description: "Almoço tranquilo e gostoso pertinho da hospedagem antes de subir para o bairro boêmio de Santa Teresa.",
+        tips: "Restaurantes com prato feito carioca saboroso e ambiente charmoso.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_parque_ruinas",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "15:00",
+        title: "Parque das Ruínas (Santa Teresa)",
+        location: "Rua Murtinho Nobre, 169, Santa Teresa",
+        coords: [-22.9192, -43.1843],
+        category: "romantico",
+        icon: "fa-panorama",
+        description: "Subida de bondinho (ou aplicativo) até o centro cultural instalado no antigo palacete de Laurinda Santos Lobo, com mirante 360° do Rio e da Baía.",
+        tips: "Um dos visuais panorâmicos mais lindos do Rio, perfeito para a última foto oficial de casal!",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_largo_guimaraes",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "16:00",
+        title: "Largo dos Guimarães",
+        location: "Largo dos Guimarães, Santa Teresa",
+        coords: [-22.9208, -43.1872],
+        category: "passeio",
+        icon: "fa-store",
+        description: "Caminhada pelo coração de Santa Teresa: ateliês, lojinhas de artesanato e uma pausa para um café com vista.",
+        tips: "Comprem um café especial ou cachaça artesanal de lembrança carioca.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_saida_caxias",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "18:30",
+        title: "Buscar Malas & Ida para Duque de Caxias",
+        location: "Rua do Senado ➔ Duque de Caxias",
+        coords: [-22.7857, -43.3106],
+        category: "transporte",
+        icon: "fa-car",
+        description: "Retirada das malas na Rua do Senado e saída antecipada de aplicativo em direção a Caxias por causa do trânsito da Linha Vermelha.",
+        tips: "Sair às 18h30 garante viagem tranquila sem estresse de horário com trânsito.",
+        completed: false,
+        userNotes: ""
+      },
+      {
+        id: "ter_ensaio_grande_rio",
+        day: 5,
+        dayName: "Terça 13/10",
+        time: "20:00",
+        title: "Ensaio da Grande Rio (Fechamento de Ouro)",
+        location: "Rua Almirante Barroso, 29, Duque de Caxias",
+        coords: [-22.7857, -43.3106],
+        category: "samba",
+        icon: "fa-drum",
+        description: "O grande fechamento da viagem de aniversário da Stefany! A cadência da Bateria Invocada, passistas e comunidade tricolor da Acadêmicos do Grande Rio.",
+        tips: "A energia da quadra de samba é inesquecível para encerrar essa primeira viagem com chave de ouro e muito axé!",
+        completed: false,
+        userNotes: ""
+      }
+    ];
+
+    /* App State */
+    let itinerary = [];
+    let photoAlbum = [];
+    let loveNote = "Stefany, meu amor! Que este aniversário no Rio de Janeiro seja apenas o começo de muitas e muitas viagens inesquecíveis que faremos juntos pela vida afora. O Rio fica infinitamente mais lindo e ensolarado com você e o seu sorriso dourado ao meu lado. Te amo infinitamente! 🌻💛";
+    let activeDayFilter = 'all';
+
+    let mapInstance = null;
+    let markersMap = {};
+    let toneInitialized = false;
+    let chimeSynth = null;
+    let sambaLeadSynth = null;
+    let sambaBassSynth = null;
+    let sambaLoop = null;
+    let isAmbientPlaying = false;
+
+    function initApp() {
+      loadSavedState();
+      initMap();
+      renderItineraryCards();
+      renderPolaroids();
+      updateProgressUI();
+      populatePhotoActivityDropdown();
+      document.getElementById('love-letter-text').value = loveNote;
+
+      // Initialize Cloud Synchronization for real-time mobile updates across devices
+      if (window.initCloudSync) {
+        window.initCloudSync((remoteData) => {
+          if (remoteData) {
+            if (remoteData.itinerary && Array.isArray(remoteData.itinerary)) {
+              itinerary = ITINERARY_DATA.map(item => {
+                const match = remoteData.itinerary.find(p => p.id === item.id);
+                return match ? { ...item, completed: match.completed, userNotes: match.userNotes || "" } : item;
+              });
+              renderItineraryCards();
+              itinerary.forEach(i => updateMarkerAppearance(i));
+            }
+            if (remoteData.photoAlbum && Array.isArray(remoteData.photoAlbum)) {
+              photoAlbum = remoteData.photoAlbum;
+              renderPolaroids();
+              renderItineraryCards();
+            }
+            if (remoteData.loveNote) {
+              loveNote = remoteData.loveNote;
+              const el = document.getElementById('love-letter-text');
+              if (el) el.value = loveNote;
+            }
+            updateProgressUI();
+          }
+        });
+      }
+
+      // Check if user has already entered via welcome curtain during this session
+      if (sessionStorage.getItem('entered_journey') === 'true') {
+        const curtain = document.getElementById('welcome-curtain');
+        if (curtain) curtain.classList.add('hidden-curtain');
+      }
+    }
+
+    function startOurJourney() {
+      sessionStorage.setItem('entered_journey', 'true');
+      const curtain = document.getElementById('welcome-curtain');
+      if (curtain) {
+        curtain.classList.add('hidden-curtain');
+      }
+      playCheckSound();
+      celebrateStefany();
+      // Start ambient Samba de Verão to welcome Stefany
+      setTimeout(() => {
+        if (!isAmbientPlaying) {
+          toggleAmbientSound();
+        }
+      }, 700);
+      showToast("Bem-vinda ao Rio de Janeiro, Stefany! ☀️🌻", "success");
+    }
+
+    function showCurtainAgain() {
+      const curtain = document.getElementById('welcome-curtain');
+      if (curtain) {
+        curtain.classList.remove('hidden-curtain');
+      }
+    }
+
+    function loadSavedState() {
+      try {
+        const savedItinerary = localStorage.getItem('rj_couple_itinerary_v2');
+        if (savedItinerary) {
+          const parsed = JSON.parse(savedItinerary);
+          itinerary = ITINERARY_DATA.map(item => {
+            const match = parsed.find(p => p.id === item.id);
+            return match ? { ...item, completed: match.completed, userNotes: match.userNotes || "" } : item;
+          });
+        } else {
+          itinerary = [...ITINERARY_DATA];
+        }
+
+        const savedPhotos = localStorage.getItem('rj_couple_photos_v2');
+        if (savedPhotos) {
+          photoAlbum = JSON.parse(savedPhotos);
+        }
+
+        const savedNote = localStorage.getItem('rj_couple_lovenote_v2');
+        if (savedNote) {
+          loveNote = savedNote;
+        }
+      } catch(e) {
+        console.warn("Storage parse error, using defaults:", e);
+        itinerary = [...ITINERARY_DATA];
+      }
+    }
+
+    function saveState() {
+      const itData = itinerary.map(i => ({ id: i.id, completed: i.completed, userNotes: i.userNotes }));
+      try {
+        localStorage.setItem('rj_couple_itinerary_v2', JSON.stringify(itData));
+        localStorage.setItem('rj_couple_photos_v2', JSON.stringify(photoAlbum));
+        localStorage.setItem('rj_couple_lovenote_v2', loveNote);
+      } catch(e) {
+        console.warn("Local storage write full/disabled:", e);
+      }
+
+      // Sync with cloud for multi-device experience on Stefany's phone
+      if (window.saveTripStateToCloud) {
+        window.saveTripStateToCloud({
+          itinerary: itData,
+          photoAlbum: photoAlbum,
+          loveNote: loveNote
+        });
+      }
+
+      updateProgressUI();
+    }
+
+    async function ensureTone() {
+      if (!toneInitialized) {
+        await Tone.start();
+        chimeSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: "triangle" },
+          envelope: { attack: 0.005, decay: 0.3, sustain: 0.1, release: 1.2 }
+        }).toDestination();
+        chimeSynth.volume.value = -8;
+        toneInitialized = true;
+      }
+    }
+
+    async function playCheckSound() {
+      try {
+        await ensureTone();
+        const now = Tone.now();
+        chimeSynth.triggerAttackRelease("E5", "8n", now);
+        chimeSynth.triggerAttackRelease("G#5", "8n", now + 0.08);
+        chimeSynth.triggerAttackRelease("B5", "8n", now + 0.16);
+        chimeSynth.triggerAttackRelease("E6", "4n", now + 0.24);
+      } catch (e) {
+        console.debug("Audio play blocked", e);
+      }
+    }
+
+    async function toggleAmbientSound() {
+      await ensureTone();
+      const btn = document.getElementById('btn-ambient-audio');
+      const icon = document.getElementById('ambient-icon');
+      const text = document.getElementById('ambient-text');
+
+      if (!isAmbientPlaying) {
+        sambaLeadSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: "sine" },
+          envelope: { attack: 0.02, decay: 0.25, sustain: 0.25, release: 0.6 }
+        }).toDestination();
+        sambaLeadSynth.volume.value = -12;
+
+        sambaBassSynth = new Tone.MembraneSynth({
+          pitchDecay: 0.05,
+          octaves: 3,
+          oscillator: { type: "sine" },
+          envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4 }
+        }).toDestination();
+        sambaBassSynth.volume.value = -14;
+
+        // Iconic Samba de Verão syncopated Brazilian chords
+        const sambaChords = [
+          { time: "0:0:0", chord: ["D4", "F#4", "A4", "C#5"], bass: "D2" },
+          { time: "0:0:3", chord: ["F#4", "A4", "C#5"], bass: null },
+          { time: "0:1:2", chord: ["D4", "F#4", "A4", "C#5"], bass: "A2" },
+          { time: "0:2:1", chord: ["F#4", "C#5"], bass: null },
+          { time: "0:3:0", chord: ["D4", "F#4", "A4", "C#5"], bass: "D2" },
+          { time: "0:3:2", chord: ["F#4", "A4", "C#5"], bass: null },
+
+          { time: "1:0:0", chord: ["C#4", "E4", "G#4", "B4"], bass: "C#2" },
+          { time: "1:0:3", chord: ["E4", "G#4", "B4"], bass: null },
+          { time: "1:1:2", chord: ["F#3", "A#4", "C#5", "E5"], bass: "F#2" },
+          { time: "1:2:1", chord: ["A#4", "E5"], bass: null },
+          { time: "1:3:0", chord: ["F#3", "A#4", "C#5"], bass: "C#2" },
+          { time: "1:3:2", chord: ["C#5", "E5"], bass: null },
+
+          { time: "2:0:0", chord: ["B3", "D4", "F#4", "A4"], bass: "B2" },
+          { time: "2:0:3", chord: ["D4", "F#4", "A4"], bass: null },
+          { time: "2:1:2", chord: ["B3", "D4", "F#4", "A4"], bass: "F#2" },
+          { time: "2:2:1", chord: ["F#4", "A4"], bass: null },
+          { time: "2:3:0", chord: ["B3", "D4", "F#4", "A4"], bass: "B2" },
+          { time: "2:3:2", chord: ["D4", "A4"], bass: null },
+
+          { time: "3:0:0", chord: ["E3", "G#4", "B4", "D5"], bass: "E2" },
+          { time: "3:0:3", chord: ["G#4", "D5"], bass: null },
+          { time: "3:1:2", chord: ["A3", "C#4", "G4", "C#5"], bass: "A2" },
+          { time: "3:2:1", chord: ["G4", "C#5"], bass: null },
+          { time: "3:3:0", chord: ["A3", "C#4", "E4", "G4"], bass: "E2" },
+          { time: "3:3:2", chord: ["C#5", "E5"], bass: null }
+        ];
+
+        sambaLoop = new Tone.Part((time, event) => {
+          if (event.chord) {
+            sambaLeadSynth.triggerAttackRelease(event.chord, "16n", time);
+          }
+          if (event.bass) {
+            sambaBassSynth.triggerAttackRelease(event.bass, "8n", time);
+          }
+        }, sambaChords);
+
+        sambaLoop.loop = true;
+        sambaLoop.loopEnd = "4m";
+
+        Tone.Transport.bpm.value = 104;
+        Tone.Transport.swing = 0.28;
+        Tone.Transport.start();
+        sambaLoop.start(0);
+
+        isAmbientPlaying = true;
+        btn.classList.remove('bg-amber-50', 'text-amber-900', 'border-yellow-300');
+        btn.classList.add('bg-gradient-to-r', 'from-amber-400', 'to-yellow-400', 'text-slate-950', 'border-yellow-500', 'shadow-md');
+        icon.className = "fa-solid fa-sun fa-spin text-amber-950";
+        text.innerText = "Tocando Samba de Verão ☀️";
+        showToast("Tocando Samba de Verão Instrumental!", "music");
+      } else {
+        Tone.Transport.stop();
+        if (sambaLoop) {
+          sambaLoop.stop();
+          sambaLoop.dispose();
+        }
+        if (sambaLeadSynth) sambaLeadSynth.dispose();
+        if (sambaBassSynth) sambaBassSynth.dispose();
+        isAmbientPlaying = false;
+        btn.classList.remove('bg-gradient-to-r', 'from-amber-400', 'to-yellow-400', 'text-slate-950', 'border-yellow-500', 'shadow-md');
+        btn.classList.add('bg-amber-50', 'text-amber-900', 'border-yellow-300');
+        icon.className = "fa-solid fa-sun text-yellow-500";
+        text.innerText = "Samba de Verão ☀️";
+        showToast("Samba pausado.", "info");
+      }
+    }
+
+    function initMap() {
+      mapInstance = L.map('map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([-22.9200, -43.1950], 12);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(mapInstance);
+
+      itinerary.forEach(item => {
+        addMarkerForActivity(item);
+      });
+
+      setTimeout(() => {
+        mapInstance.invalidateSize();
+      }, 300);
+    }
+
+    function createMarkerIcon(item) {
+      const isComplete = item.completed;
+      const isHospedagem = item.category === "hospedagem";
+      let bgClass = isComplete ? 'bg-yellow-500' : (isHospedagem ? 'bg-indigo-600' : 'bg-amber-500');
+
+      return L.divIcon({
+        className: 'custom-leaflet-pin',
+        html: `
+          <div class="custom-marker-pin ${bgClass}" style="box-shadow: 0 4px 12px rgba(234, 179, 8, 0.4); border: 2px solid ${isComplete ? '#fef08a' : '#ffffff'};">
+            <i class="fa-solid ${item.icon}"></i>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+    }
+
+    function addMarkerForActivity(item) {
+      const icon = createMarkerIcon(item);
+      const marker = L.marker(item.coords, { icon: icon }).addTo(mapInstance);
+
+      const popupContent = `
+        <div class="p-1 space-y-1 font-sans text-xs max-w-[210px]">
+          <span class="inline-block text-[10px] font-bold uppercase text-amber-900 bg-yellow-100 px-2 py-0.5 rounded-full">${item.dayName} • ${item.time}</span>
+          <h4 class="font-bold text-slate-900 text-sm">${item.title}</h4>
+          <p class="text-slate-500 text-[11px] leading-tight">${item.location}</p>
+          <div class="pt-1.5 flex justify-between items-center border-t border-slate-100">
+            <span class="text-[10px] font-semibold ${item.completed ? 'text-amber-600 font-bold' : 'text-slate-400'}">
+              ${item.completed ? '✓ Concluído' : '○ Pendente'}
+            </span>
+            <button onclick="scrollToCard('${item.id}')" class="text-amber-700 hover:text-amber-900 font-bold text-[11px]">Ver no Roteiro</button>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent);
+      markersMap[item.id] = marker;
+    }
+
+    function updateMarkerAppearance(item) {
+      if (markersMap[item.id]) {
+        markersMap[item.id].setIcon(createMarkerIcon(item));
+      }
+    }
+
+    function renderItineraryCards() {
+      const container = document.getElementById('itinerary-cards-container');
+      container.innerHTML = '';
+
+      const filtered = activeDayFilter === 'all' 
+        ? itinerary 
+        : itinerary.filter(i => i.day === parseInt(activeDayFilter));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Nenhuma atividade para o filtro selecionado.</p>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const card = document.createElement('div');
+        card.id = `card-${item.id}`;
+        card.className = `p-4 sm:p-5 rounded-2xl transition-all duration-300 border ${
+          item.completed 
+            ? 'bg-amber-50/90 border-yellow-300 shadow-sm' 
+            : 'bg-white border-amber-100 hover:border-yellow-300 shadow-sm hover:shadow-md'
+        }`;
+
+        const itemPhotos = photoAlbum.filter(p => p.activityId === item.id);
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3 flex-1">
+              <!-- Checkbox button in sunny yellow -->
+              <button onclick="toggleCheck('${item.id}')" class="mt-1 w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+                item.completed 
+                  ? 'bg-yellow-400 text-slate-900 border-2 border-yellow-500 shadow-md shadow-yellow-400/40' 
+                  : 'border-2 border-amber-200 hover:border-yellow-400 text-transparent bg-white'
+              }">
+                <i class="fa-solid fa-check text-xs font-black"></i>
+              </button>
+
+              <div class="space-y-1 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-amber-900 bg-yellow-200/80 border border-yellow-300 px-2.5 py-0.5 rounded-full">
+                    ${item.dayName} • ${item.time}
+                  </span>
+                  <span class="text-xs text-slate-500 flex items-center gap-1">
+                    <i class="fa-solid fa-location-dot text-amber-500"></i> ${item.location}
+                  </span>
+                </div>
+
+                <h4 class="text-base sm:text-lg font-bold ${item.completed ? 'line-through text-slate-400' : 'text-slate-900'} font-serif-title">
+                  ${item.title}
+                </h4>
+
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  ${item.description}
+                </p>
+
+                <!-- Logistics Tip in sunny yellow box -->
+                <div class="bg-yellow-50 border border-yellow-300/80 rounded-xl p-2.5 text-xs text-amber-950 leading-relaxed mt-2 flex items-start gap-2 shadow-xs">
+                  <i class="fa-solid fa-lightbulb text-yellow-500 mt-0.5 text-sm flex-shrink-0"></i>
+                  <span>${item.tips}</span>
+                </div>
+
+                <!-- Attached Photos Mini Preview -->
+                ${itemPhotos.length > 0 ? `
+                  <div class="pt-2 flex flex-wrap gap-2 items-center">
+                    <span class="text-[11px] font-semibold text-amber-900"><i class="fa-solid fa-images text-yellow-500"></i> Fotos:</span>
+                    ${itemPhotos.map(p => `
+                      <img src="${p.dataUrl}" alt="${p.caption}" class="w-10 h-10 object-cover rounded-lg border-2 border-yellow-300 shadow-xs cursor-pointer" onclick="switchTab('scrapbook')" title="${p.caption}">
+                    `).join('')}
+                  </div>
+                ` : ''}
+
+                <!-- Editable Notes -->
+                <div class="pt-2 space-y-1.5">
+                  <button onclick="toggleNotesEditor('${item.id}')" class="text-[11px] text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-pen-to-square text-yellow-600"></i> ${item.userNotes ? 'Editar anotação de casal' : '+ Adicionar nota do momento'}
+                  </button>
+
+                  <div id="notes-container-${item.id}" class="${item.userNotes ? 'block' : 'hidden'} bg-amber-50/70 p-2.5 rounded-xl border border-yellow-200">
+                    <textarea id="note-input-${item.id}" rows="2" class="w-full text-xs text-slate-700 bg-white p-2 rounded-lg border border-yellow-300 focus:outline-none focus:border-yellow-500 resize-none" placeholder="O que acharam desse momento? Comidinhas, vibe, risadas?">${item.userNotes || ''}</textarea>
+                    <div class="flex justify-end gap-2 mt-1.5">
+                      <button onclick="saveNote('${item.id}')" class="px-2.5 py-1 bg-yellow-400 hover:bg-yellow-500 text-slate-900 rounded-lg text-[11px] font-bold border border-yellow-500/30">Salvar</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Quick Action: Focus on Map -->
+            <button onclick="focusMapOnItem('${item.id}')" class="p-2 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-yellow-50 transition-all text-xs" title="Ver no Mapa">
+              <i class="fa-solid fa-crosshairs text-base"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleCheck(id) {
+      const item = itinerary.find(i => i.id === id);
+      if (!item) return;
+
+      item.completed = !item.completed;
+      saveState();
+      renderItineraryCards();
+      updateMarkerAppearance(item);
+
+      if (item.completed) {
+        playCheckSound();
+        triggerSubtleConfetti();
+        showToast(`"${item.title}" concluído! Momento vivido! ☀️`, "success");
+        
+        const allCompleted = itinerary.every(i => i.completed);
+        if (allCompleted) {
+          triggerBigCelebration();
+        }
+      }
+    }
+
+    function toggleNotesEditor(id) {
+      const container = document.getElementById(`notes-container-${id}`);
+      if (container) {
+        container.classList.toggle('hidden');
+      }
+    }
+
+    function saveNote(id) {
+      const input = document.getElementById(`note-input-${id}`);
+      const item = itinerary.find(i => i.id === id);
+      if (item && input) {
+        item.userNotes = input.value.trim();
+        saveState();
+        renderItineraryCards();
+        showToast("Anotação de casal salva com carinho!", "success");
+      }
+    }
+
+    function filterByDay(day) {
+      activeDayFilter = day;
+      document.querySelectorAll('.day-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-day') == day) {
+          btn.className = "day-filter-btn px-3 py-1 text-xs rounded-lg font-bold bg-amber-400 text-slate-900 border border-amber-500/30 transition-all shadow-xs";
+        } else {
+          btn.className = "day-filter-btn px-3 py-1 text-xs rounded-lg font-medium bg-amber-50 text-slate-700 hover:bg-amber-100 transition-all border border-amber-200/50";
+        }
+      });
+      renderItineraryCards();
+
+      if (day === 'all') {
+        mapInstance.setView([-22.9200, -43.1950], 12);
+      } else {
+        const dayItems = itinerary.filter(i => i.day === parseInt(day));
+        if (dayItems.length > 0) {
+          const group = L.featureGroup(dayItems.map(i => markersMap[i.id]));
+          mapInstance.fitBounds(group.getBounds().pad(0.2));
+        }
+      }
+    }
+
+    function scrollToCard(id) {
+      const card = document.getElementById(`card-${id}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('ring-2', 'ring-yellow-400');
+        setTimeout(() => {
+          card.classList.remove('ring-2', 'ring-yellow-400');
+        }, 1500);
+      }
+    }
+
+    function focusMapOnItem(id) {
+      switchTab('itinerary');
+      const marker = markersMap[id];
+      const item = itinerary.find(i => i.id === id);
+      if (marker && item && mapInstance) {
+        mapInstance.setView(item.coords, 15, { animate: true });
+        marker.openPopup();
+        scrollToCard(id);
+      }
+    }
+
+    function copyLoveLetter() {
+      const textarea = document.getElementById('love-letter-text');
+      if (textarea) {
+        textarea.select();
+        document.execCommand('copy');
+        showToast("Declaração copiada para a área de transferência! 💛", "success");
+      }
+    }
+
+    function resetAllProgress() {
+      if (itinerary.some(i => i.completed)) {
+        itinerary.forEach(i => i.completed = false);
+        saveState();
+        renderItineraryCards();
+        itinerary.forEach(i => updateMarkerAppearance(i));
+        showToast("Roteiro pronto para começar novamente!", "info");
+      }
+    }
+
+    function updateProgressUI() {
+      const total = itinerary.length;
+      const completed = itinerary.filter(i => i.completed).length;
+      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      document.getElementById('completed-count').innerText = `${completed}/${total}`;
+      document.getElementById('progress-percentage').innerText = `${percentage}%`;
+      document.getElementById('progress-bar').style.width = `${percentage}%`;
+      document.getElementById('total-photos').innerText = photoAlbum.length;
+      document.getElementById('photo-badge').innerText = photoAlbum.length;
+    }
+
+    function switchTab(tabId) {
+      const tabs = ['itinerary', 'scrapbook', 'safety-tips'];
+      tabs.forEach(t => {
+        const sec = document.getElementById(`section-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tabId) {
+          if (sec) sec.classList.remove('hidden');
+          if (btn) {
+            btn.className = "tab-btn active px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-900 shadow-md shadow-amber-400/25 border border-yellow-300";
+          }
+        } else {
+          if (sec) sec.classList.add('hidden');
+          if (btn) {
+            btn.className = "tab-btn px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 bg-white text-slate-700 hover:bg-yellow-50 border border-amber-100";
+          }
+        }
+      });
+
+      if (tabId === 'itinerary' && mapInstance) {
+        setTimeout(() => mapInstance.invalidateSize(), 200);
+      }
+    }
+
+    function populatePhotoActivityDropdown() {
+      const select = document.getElementById('photo-activity-select');
+      select.innerHTML = '';
+      itinerary.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.innerText = `${item.dayName}: ${item.title}`;
+        select.appendChild(opt);
+      });
+    }
+
+    function openAddPhotoModal() {
+      document.getElementById('photo-modal').classList.remove('hidden');
+      document.getElementById('photo-modal').classList.add('flex');
+    }
+
+    function closePhotoModal() {
+      document.getElementById('photo-modal').classList.add('hidden');
+      document.getElementById('photo-modal').classList.remove('flex');
+      document.getElementById('photo-file-input').value = '';
+      document.getElementById('photo-preview-container').classList.add('hidden');
+      document.getElementById('photo-caption-input').value = '';
+    }
+
+    document.getElementById('photo-file-input').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const preview = document.getElementById('photo-preview');
+          preview.src = evt.target.result;
+          document.getElementById('photo-preview-container').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function savePhotoEntry() {
+      const fileInput = document.getElementById('photo-file-input');
+      const caption = document.getElementById('photo-caption-input').value.trim();
+      const activityId = document.getElementById('photo-activity-select').value;
+      const activity = itinerary.find(i => i.id === activityId);
+
+      if (!fileInput.files || !fileInput.files[0]) {
+        showToast("Por favor, selecione uma imagem.", "error");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // Compress image using HTML5 canvas to guarantee smooth mobile storage without quota bugs
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 800; // Optimal for sharp mobile screen without excessive memory
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+          const newPhoto = {
+            id: 'photo_' + Date.now(),
+            activityId: activityId,
+            activityTitle: activity ? activity.title : 'Momento Especial',
+            caption: caption || 'Lembrança inesquecível no Rio ❤️',
+            dataUrl: optimizedDataUrl,
+            timestamp: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+          };
+
+          photoAlbum.unshift(newPhoto);
+          saveState();
+          renderPolaroids();
+          renderItineraryCards();
+          closePhotoModal();
+          showToast("Foto salva com sucesso no álbum! 📸💛", "success");
+          playCheckSound();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function deletePhoto(id) {
+      photoAlbum = photoAlbum.filter(p => p.id !== id);
+      saveState();
+      renderPolaroids();
+      renderItineraryCards();
+      showToast("Foto removida do álbum.", "info");
+    }
+
+    function renderPolaroids() {
+      const grid = document.getElementById('polaroid-grid');
+      const emptyMsg = document.getElementById('empty-scrapbook-msg');
+      grid.innerHTML = '';
+
+      if (photoAlbum.length === 0) {
+        emptyMsg.classList.remove('hidden');
+        return;
+      } else {
+        emptyMsg.classList.add('hidden');
+      }
+
+      photoAlbum.forEach(item => {
+        const card = document.createElement('div');
+        card.className = "polaroid-card rounded-2xl flex flex-col justify-between group relative";
+        card.innerHTML = `
+          <div class="overflow-hidden rounded-xl bg-slate-100 aspect-square mb-2">
+            <img src="${item.dataUrl}" alt="${item.caption}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+          </div>
+          <div class="px-1 space-y-1">
+            <p class="font-serif italic text-xs text-slate-800 leading-snug font-medium">"${item.caption}"</p>
+            <div class="flex justify-between items-center text-[10px] text-slate-400 pt-1">
+              <span class="truncate max-w-[140px]">${item.activityTitle}</span>
+              <span>${item.timestamp}</span>
+            </div>
+          </div>
+          <button onclick="deletePhoto('${item.id}')" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-red-600 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir foto">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function triggerBirthdayModal() {
+      document.getElementById('birthday-modal').classList.remove('hidden');
+      document.getElementById('birthday-modal').classList.add('flex');
+      celebrateStefany();
+    }
+
+    function closeBirthdayModal() {
+      document.getElementById('birthday-modal').classList.add('hidden');
+      document.getElementById('birthday-modal').classList.remove('flex');
+    }
+
+    function saveLoveNote() {
+      const val = document.getElementById('love-letter-text').value;
+      loveNote = val;
+      saveState();
+      showToast("Mensagem de amor salva!", "success");
+    }
+
+    function celebrateStefany() {
+      playCheckSound();
+      confetti({
+        particleCount: 100,
+        spread: 75,
+        origin: { y: 0.6 },
+        colors: ['#facc15', '#f59e0b', '#fbbf24', '#f43f5e', '#ffffff']
+      });
+
+      const end = Date.now() + 1600;
+      const interval = setInterval(function() {
+        if (Date.now() > end) {
+          return clearInterval(interval);
+        }
+        confetti({
+          startVelocity: 30,
+          spread: 360,
+          ticks: 60,
+          origin: { x: Math.random(), y: Math.random() - 0.2 },
+          colors: ['#fef08a', '#facc15', '#eab308', '#f59e0b']
+        });
+      }, 250);
+    }
+
+    function triggerSubtleConfetti() {
+      confetti({
+        particleCount: 30,
+        spread: 50,
+        origin: { y: 0.8 },
+        colors: ['#facc15', '#eab308', '#10b981']
+      });
+    }
+
+    function triggerBigCelebration() {
+      confetti({
+        particleCount: 160,
+        spread: 110,
+        origin: { y: 0.5 },
+        colors: ['#facc15', '#fbbf24', '#f59e0b', '#ec4899', '#3b82f6']
+      });
+      showToast("PARABÉNS CASAL! Todas as metas concluídas! 🌻💛", "success");
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      let bg = "bg-slate-900 text-white";
+      let icon = "fa-info-circle";
+      if (type === "success") {
+        bg = "bg-amber-500 text-slate-950 font-bold border border-yellow-300";
+        icon = "fa-circle-check";
+      } else if (type === "error") {
+        bg = "bg-rose-600 text-white";
+        icon = "fa-circle-exclamation";
+      } else if (type === "music") {
+        bg = "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-bold border border-yellow-300";
+        icon = "fa-sun";
+      }
+
+      toast.className = `${bg} px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-medium transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+      toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    window.addEventListener('load', () => {
+      initApp();
+    });
+  </script>
+</body>
+</html>
